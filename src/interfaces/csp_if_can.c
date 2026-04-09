@@ -58,6 +58,11 @@ static int csp_can1_rx(csp_iface_t * iface, uint32_t id, const uint8_t * data, u
 		}
 	}
 
+	if (packet == NULL) {
+		iface->drop++;
+		return CSP_ERR_NOBUFS;
+	}
+
 	/* Reset frame data offset */
 	uint8_t offset = 0;
 
@@ -266,6 +271,10 @@ static int csp_can2_rx(csp_iface_t * iface, uint32_t id, const uint8_t * data, u
 		}
 	}
 
+	if (packet == NULL) {
+		iface->drop++;
+		return CSP_ERR_NOBUFS;
+	}
 
 	/* BEGIN */
 	if (id & (CFP2_BEGIN_MASK << CFP2_BEGIN_OFFSET)) {
