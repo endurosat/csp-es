@@ -152,15 +152,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CSP_POSIX 1)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(CSP_WINDOWS 1)
-    # FM: is this a submodule or old
-    target_include_directories(csp_es PUBLIC ${CMAKE_SOURCE_DIR}/peakcan)
-
-    # Create an interface library for PeakCAN includes
-    add_library(peakcan_includes INTERFACE)
-    target_include_directories(peakcan_includes INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/can/windows/peakcan
-    )
-    target_link_libraries(csp_es PUBLIC peakcan_includes)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic")
   # Set default CSP_SYSTEM_NAME for embedded builds if not already defined
   if(NOT DEFINED CSP_SYSTEM_NAME)
@@ -406,7 +397,7 @@ if(CSP_POSIX AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
         set(CPACK_GENERATOR "DEB")
         set(CPACK_DEBIAN_PACKAGE_VERSION ${PROJECT_VERSION})
         set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-        set(CMAKE_PROJECT_HOMEPAGE_URL "https://github.com/endurosat/csp-es")
+        set(CMAKE_PROJECT_HOMEPAGE_URL "https://github.com/endurosat/csp_es")
         set(CPACK_PACKAGE_CONTACT "https://www.endurosat.com/contact/")
         set(CPACK_PACKAGE_VENDOR "EnduroSat")
         set(CPACK_DEBIAN_PACKAGE_MAINTAINER "EnduroSat <https://www.endurosat.com/contact/>")
