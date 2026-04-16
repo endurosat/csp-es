@@ -15,6 +15,7 @@ target_sources(csp_es PRIVATE
   csp_service_handler.c
   csp_services.c
   csp_sfp.c
+  csp_version.c
   )
 
 set_source_files_properties(csp_rdp.c
