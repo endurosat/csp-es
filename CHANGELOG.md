@@ -13,6 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Runtime version reporting API** — New `csp_get_version()` function
+  (`include/csp/csp_version.h`, `src/csp_version.c`) returns a pointer to a
+  static `csp_version_info_t` struct containing `major`, `minor`, `patch`, and a
+  full `version_string` (e.g. `"1.2.3-rc.1"`). Companion preprocessor constants
+  `CSP_VERSION_MAJOR`, `CSP_VERSION_MINOR`, and `CSP_VERSION_PATCH` are injected
+  as PUBLIC compile definitions by the build system, making them usable in `#if`
+  guards in consumer code without any additional setup. Values are populated from
+  build-system compile definitions; if not injected they fall back to `0` /
+  `"0.0.0-unknown"`. See `doc/INSTALL.md` for guidance on injecting version
+  information from CI pipelines and git tags.
 - **Runtime routing enable/disable per interface** — New `is_routing_enabled`
   flag on `csp_iface_s` and `csp_iflist_set_routing_enabled()` API allow
   suspending routing through a registered interface at runtime without removing
