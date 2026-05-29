@@ -124,11 +124,11 @@ static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * dat
 
 		written = write(ctx->socket, (void *)pdata, length);
 		if (written < 0) {
-			if (errno == ENOBUFS) {
+			if (errno == EAGAIN || errno == ENOBUFS) {
 				/* If no space available, wait for 5 ms and try again */
 				usleep(5000);
 				waiting_ms += 5;
-			} else if(errno == EAGAIN || errno == EINTR) {
+			} else if(errno == EINTR) {
 				/* Acceptable, since something interrupted us, try again */
 				waiting_ms += 5;
 			} else {
