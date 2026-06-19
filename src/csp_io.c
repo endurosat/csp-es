@@ -105,6 +105,14 @@ void csp_send_direct(csp_id_t* idout, csp_packet_t * packet, csp_iface_t * route
 
 	/* Quickly send on loopback */
 	if(idout->dst == csp_if_lo.addr){
+		/* Stamp our own address as the source for self-addressed (loopback) traffic, mirroring
+		 * the egress stamping done in the subnet loop below. csp_connect() leaves src=0 to be
+		 * filled in at egress, but this loopback shortcut returns before that happens; without
+		 * this, a self-addressed request arrives with src=0 and the receiver replies to dst=0,
+		 * so the reply is never routed back to the originating connection. */
+		if ((from_me) && (idout->src == 0)) {
+			idout->src = csp_if_lo.addr;
+		}
 		csp_send_direct_iface(idout, packet, &csp_if_lo, via, from_me);
 		return;
 	}
