@@ -239,11 +239,10 @@ int csp_can_socketcan_open_and_add_interface(const char * device, const char * i
 		return CSP_ERR_INVAL;
 	}
 
-	/* Enable receiving own transmitted messages.
-	 * This is required for promiscuous mode when multiple clients share the same
-	 * plugin instance (socket). Without this, frames sent by one client (e.g., simulator)
-	 * won't be visible to another client (e.g., sniffer) using the same socket. */
-	int recv_own_msgs = 1;
+	/* Disable receiving own transmitted messages.
+	 * Loopback is handled in software by the plugin layer, so kernel loopback is
+	 * not needed and would cause duplicate frames on the receive path. */
+	int recv_own_msgs = 0;
 	if (setsockopt(ctx->socket, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS, &recv_own_msgs, sizeof(recv_own_msgs)) < 0) {
 		csp_print(CSP_LL_ERROR, "%s[%s]: setsockopt(CAN_RAW_RECV_OWN_MSGS) failed, error: %s\n", __func__, ctx->name, strerror(errno));
 		/* Non-fatal: continue without this feature */

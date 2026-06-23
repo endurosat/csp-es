@@ -5,6 +5,7 @@ target_sources(csp_es PRIVATE
   csp_crc32.c
   csp_debug.c
   csp_dedup.c
+  csp_diag.c
   csp_id.c
   csp_iflist.c
   csp_init.c
