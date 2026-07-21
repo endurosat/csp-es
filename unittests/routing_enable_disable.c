@@ -53,11 +53,13 @@ static void setup(void) {
 }
 
 static void teardown(void) {
+	csp_rtable_clear();
 	csp_iflist_remove(&iface_a);
 	csp_iflist_remove(&iface_b);
 }
 
-static void send_to(uint16_t dst) {
+/* Locally-originated send (from_me == 1): routed_from == NULL */
+static void send_local(uint16_t dst) {
 	csp_packet_t * pkt = csp_buffer_get_always();
 	pkt->length = 0;
 	csp_id_t id;
@@ -67,66 +69,113 @@ static void send_to(uint16_t dst) {
 	csp_send_direct(&id, pkt, NULL);
 }
 
+/* Transit/forwarded send (from_me == 0): routed_from == incoming iface */
+static void send_transit(uint16_t dst, csp_iface_t * routed_from) {
+	csp_packet_t * pkt = csp_buffer_get_always();
+	pkt->length = 0;
+	csp_id_t id;
+	memset(&id, 0, sizeof(id));
+	id.dst = dst;
+	id.pri = CSP_PRIO_NORM;
+	csp_send_direct(&id, pkt, routed_from);
+}
+
 /* --- Tests ---------------------------------------------------------------- */
 
-/* TC1: both interfaces enabled — packet routed to the correct one */
+/* Both interfaces enabled — packet routed to the matching interface. */
 START_TEST(test_enabled_routes_packet)
 {
-	send_to(2);   /* dest 2 is on subnet 0.x — should reach iface_a */
+	send_local(2);   /* dest 2 is on subnet 0.x — should reach iface_a */
 	ck_assert_int_eq(dummy_a_tx_count, 1);
 	ck_assert_int_eq(dummy_b_tx_count, 0);
 }
 END_TEST
 
-/* TC2: disable iface_a — packet is not delivered to iface_a or any other interface */
-START_TEST(test_disabled_drops_packet)
+/* (a) Locally-originated traffic (from_me) STILL egresses on a routing-disabled
+ *     interface, so the node can answer requests addressed to itself. */
+START_TEST(test_local_reply_succeeds_on_disabled_iface)
 {
 	csp_iflist_set_routing_enabled(&iface_a, false);
-	send_to(2);
-	ck_assert_int_eq(dummy_a_tx_count, 0);
+	send_local(2);                                   /* from_me == 1 */
+	ck_assert_int_eq(dummy_a_tx_count, 1);
 	ck_assert_int_eq(dummy_b_tx_count, 0);
 }
 END_TEST
 
-/* TC2b: when disabled interface is reached via routing table, drop is incremented */
-START_TEST(test_disabled_via_rtable_increments_drop)
+/* (b) Transit/forwarded traffic (from_me == 0) is dropped on a routing-disabled
+ *     interface reached via the local-subnet lookup, and increments drop. */
+START_TEST(test_transit_blocked_on_disabled_iface)
 {
-	/* Add a routing table entry pointing directly to iface_a */
-	csp_rtable_set(2, 8, &iface_a, CSP_NO_VIA_ADDRESS);
 	csp_iflist_set_routing_enabled(&iface_a, false);
 	uint32_t drop_before = iface_a.drop;
-	send_to(2);
+	send_transit(2, &iface_b);                       /* from_me == 0, arrived on iface_b */
 	ck_assert_int_eq(dummy_a_tx_count, 0);
 	ck_assert_int_gt((int)iface_a.drop, (int)drop_before);
-	csp_rtable_clear();
 }
 END_TEST
 
-/* TC3: re-enable iface_a — routing restored */
+/* (b') Transit reaching a disabled interface via the routing table is dropped
+ *      and increments drop. (dst 768 is off both interface subnets, so it can
+ *      only be reached through the routing-table entry.) */
+START_TEST(test_transit_blocked_via_rtable_increments_drop)
+{
+	csp_rtable_set(768, 8, &iface_a, CSP_NO_VIA_ADDRESS);
+	csp_iflist_set_routing_enabled(&iface_a, false);
+	uint32_t drop_before = iface_a.drop;
+	send_transit(768, &iface_b);                     /* from_me == 0 */
+	ck_assert_int_eq(dummy_a_tx_count, 0);
+	ck_assert_int_gt((int)iface_a.drop, (int)drop_before);
+}
+END_TEST
+
+/* (c) Transit to a subnet served ONLY by a routing-disabled interface must still
+ *     fall through to a routing-table route — regression guard ensuring the
+ *     local-subnet loop does not set local_found for the skipped interface and
+ *     early-return before the rtable/default fallback. */
+START_TEST(test_transit_falls_back_when_subnet_iface_disabled)
+{
+	/* Fallback route for dst 2 via iface_b */
+	csp_rtable_set(2, 8, &iface_b, CSP_NO_VIA_ADDRESS);
+	csp_iflist_set_routing_enabled(&iface_a, false);
+
+	/* Incoming from a third subnet so split-horizon does not skip iface_b */
+	csp_iface_t routed_src;
+	memset(&routed_src, 0, sizeof(routed_src));
+	routed_src.name    = "SRC";
+	routed_src.addr    = 513;   /* subnet 2.x */
+	routed_src.netmask = 8;
+
+	send_transit(2, &routed_src);                    /* from_me == 0, dst on disabled iface_a's subnet */
+	ck_assert_int_eq(dummy_a_tx_count, 0);           /* not via disabled iface_a */
+	ck_assert_int_eq(dummy_b_tx_count, 1);           /* fell back to iface_b via rtable */
+}
+END_TEST
+
+/* Re-enable iface_a — routing restored (transit works again). */
 START_TEST(test_reenable_restores_routing)
 {
 	csp_iflist_set_routing_enabled(&iface_a, false);
 	csp_iflist_set_routing_enabled(&iface_a, true);
-	send_to(2);
+	send_transit(2, &iface_b);
 	ck_assert_int_eq(dummy_a_tx_count, 1);
 }
 END_TEST
 
-/* TC4: disabling one interface does not affect the other */
+/* Disabling one interface does not affect the other. */
 START_TEST(test_disable_one_does_not_affect_other)
 {
 	csp_iflist_set_routing_enabled(&iface_a, false);
-	send_to(258);  /* dest 258 is on subnet 1.x — should reach iface_b */
+	send_transit(258, &iface_a);   /* dest 258 is on subnet 1.x — should reach iface_b */
 	ck_assert_int_eq(dummy_b_tx_count, 1);
 	ck_assert_int_eq(dummy_a_tx_count, 0);
 }
 END_TEST
 
-/* TC5: NULL iface passed to setter is a no-op (must not crash) */
+/* NULL iface passed to setter is a no-op (must not crash). */
 START_TEST(test_null_iface_noop)
 {
 	csp_iflist_set_routing_enabled(NULL, false);  /* must not crash */
-	send_to(2);
+	send_local(2);
 	ck_assert_int_eq(dummy_a_tx_count, 1);
 }
 END_TEST
@@ -137,8 +186,10 @@ Suite * routing_enable_disable_suite(void)
 	TCase * tc = tcase_create("csp_iflist_set_routing_enabled");
 	tcase_add_checked_fixture(tc, setup, teardown);
 	tcase_add_test(tc, test_enabled_routes_packet);
-	tcase_add_test(tc, test_disabled_drops_packet);
-	tcase_add_test(tc, test_disabled_via_rtable_increments_drop);
+	tcase_add_test(tc, test_local_reply_succeeds_on_disabled_iface);
+	tcase_add_test(tc, test_transit_blocked_on_disabled_iface);
+	tcase_add_test(tc, test_transit_blocked_via_rtable_increments_drop);
+	tcase_add_test(tc, test_transit_falls_back_when_subnet_iface_disabled);
 	tcase_add_test(tc, test_reenable_restores_routing);
 	tcase_add_test(tc, test_disable_one_does_not_affect_other);
 	tcase_add_test(tc, test_null_iface_noop);
