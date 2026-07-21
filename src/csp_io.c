@@ -122,6 +122,17 @@ void csp_send_direct(csp_id_t* idout, csp_packet_t * packet, csp_iface_t * route
 
 	while ((iface = csp_iflist_get_by_subnet(idout->dst, iface)) != NULL) {
 
+		/* Transit traffic: skip routing-disabled interfaces so the packet can still
+		 * fall through to the routing table / default interfaces below (mirrors the
+		 * RTABLE loop's ordering). Do NOT set local_found for these, or the early
+		 * return after this loop would bypass that fallback. Locally-originated
+		 * traffic (from_me) is allowed, so the node can still reply on a
+		 * routing-disabled interface. */
+		if (!from_me && !iface->is_routing_enabled) {
+			iface->drop++;
+			continue;
+		}
+
 		local_found = 1;
 
 		/* Do not send back to same inteface (split horizon)
@@ -167,8 +178,9 @@ void csp_send_direct(csp_id_t* idout, csp_packet_t * packet, csp_iface_t * route
 	csp_route_t * route = csp_rtable_find_route(idout->dst);
 	if (route != NULL) {
 		do {
-			/* Skip disabled interfaces */
-			if (!route->iface->is_routing_enabled) {
+			/* Skip routing-disabled interfaces for transit traffic only; locally-originated
+			 * traffic (from_me) is still allowed so the node can transmit its own packets. */
+			if (!from_me && !route->iface->is_routing_enabled) {
 				route->iface->drop++;
 				continue;
 			}
@@ -255,8 +267,9 @@ __weak void csp_output_hook(const csp_id_t * idout, csp_packet_t * packet, csp_i
 
 void csp_send_direct_iface(const csp_id_t* idout, csp_packet_t * packet, csp_iface_t * iface, uint16_t via, int from_me) {
 
-	/* Safety net: drop packet if routing is disabled on this interface */
-	if (!iface->is_routing_enabled) {
+	/* Safety net: drop transit traffic (from_me == 0) on a routing-disabled interface.
+	 * Locally-originated traffic (from_me) is allowed, so the node can still reply/transmit. */
+	if (!from_me && !iface->is_routing_enabled) {
 		csp_buffer_free(packet);
 		iface->drop++;
 		return;

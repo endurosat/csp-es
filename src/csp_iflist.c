@@ -42,13 +42,6 @@ csp_iface_t * csp_iflist_get_by_subnet(uint16_t addr, csp_iface_t * ifc) {
 	}
 
 	while (ifc) {
-
-		/* Skip interfaces with routing disabled */
-		if (!ifc->is_routing_enabled) {
-			ifc = ifc->next;
-			continue;
-		}
-
 		/* Reject searches involving subnets, if the netmask is invalid */
 		if (ifc->netmask == 0) {
 			ifc = ifc->next;
@@ -78,20 +71,12 @@ csp_iface_t * csp_iflist_get_by_isdfl(csp_iface_t * ifc) {
 	}
 
 	while (ifc) {
-
-		/* Skip interfaces with routing disabled */
-		if (!ifc->is_routing_enabled) {
-			ifc = ifc->next;
-			continue;
-		}
-
 		if (ifc->is_default == 1) {
 			return ifc;
 		}
 
 		ifc = ifc->next;
 		continue;
-
 	}
 
 	return NULL;
