@@ -7,7 +7,14 @@
 #define CSP_SEMAPHORE_OK    0
 #define CSP_SEMAPHORE_ERROR -1
 
-#if (CSP_POSIX || __DOXYGEN__)
+#if defined(__APPLE__)
+#include <pthread.h>
+typedef struct {
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	int value;
+} csp_bin_sem_t;
+#elif (CSP_POSIX || __DOXYGEN__)
 #include <semaphore.h>
 typedef sem_t csp_bin_sem_t;
 #elif (CSP_WINDOWS)

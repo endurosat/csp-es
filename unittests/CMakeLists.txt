@@ -1,5 +1,7 @@
 if(CHECK_FOUND)
   add_executable(csp_tests)
+  target_include_directories(csp_tests PRIVATE ${CHECK_INCLUDE_DIRS})
+  target_link_directories(csp_tests PRIVATE ${CHECK_LIBRARY_DIRS})
   target_link_libraries(csp_tests PRIVATE csp_es ${CHECK_LIBRARIES})
   target_sources(csp_tests PRIVATE
     main.c

@@ -14,7 +14,12 @@ http://code.google.com/p/c-pthread-queue/
 #include <csp/csp.h>
 
 static inline int get_deadline(struct timespec * ts, uint32_t timeout_ms) {
+#ifdef __APPLE__
+	// Must match the clock actually used by the condvar in init_cond_clock_monotonic() below.
+	int ret = clock_gettime(CLOCK_REALTIME, ts);
+#else
 	int ret = clock_gettime(CLOCK_MONOTONIC, ts);
+#endif
 
 	if (ret < 0) {
 		return ret;
@@ -36,6 +41,11 @@ static inline int get_deadline(struct timespec * ts, uint32_t timeout_ms) {
 
 static inline int init_cond_clock_monotonic(pthread_cond_t * cond) {
 
+#ifdef __APPLE__
+	// macOS's pthread implementation doesn't support pthread_condattr_setclock(); fall back to
+	// the condvar's default clock (CLOCK_REALTIME), matching get_deadline() above.
+	return pthread_cond_init(cond, NULL);
+#else
 	int ret;
 	pthread_condattr_t attr;
 
@@ -48,6 +58,7 @@ static inline int init_cond_clock_monotonic(pthread_cond_t * cond) {
 
 	pthread_condattr_destroy(&attr);
 	return ret;
+#endif
 }
 
 pthread_queue_t * pthread_queue_create(int length, size_t item_size) {
