@@ -1,6 +1,28 @@
 #include <csp/csp_hooks.h>
 
 #include <unistd.h>
+
+#ifdef __APPLE__
+
+uint32_t csp_memfree_hook(void) {
+	return 0;  // not implemented on macOS
+}
+
+unsigned int csp_ps_hook(csp_packet_t * packet) {
+	(void)packet; /* Avoid compiler warnings about unused parameter */
+	return 0;
+}
+
+void csp_reboot_hook(void) {
+	// not implemented on macOS
+}
+
+void csp_shutdown_hook(void) {
+	// not implemented on macOS
+}
+
+#else
+
 #include <sys/sysinfo.h>
 #ifdef __CYGWIN__
 #include <csp/csp_debug.h>
@@ -31,3 +53,5 @@ void csp_shutdown_hook(void) {
 	sync();
 	reboot(LINUX_REBOOT_CMD_HALT);
 }
+
+#endif

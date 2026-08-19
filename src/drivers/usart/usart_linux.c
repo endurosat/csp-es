@@ -95,6 +95,8 @@ int csp_usart_open(const csp_usart_conf_t * conf, csp_usart_callback_t rx_callba
 		case 230400:
 			brate = B230400;
 			break;
+#ifndef __APPLE__
+		// Linux/glibc-only high-speed extensions; macOS's <termios.h> tops out at B230400.
 		case 460800:
 			brate = B460800;
 			break;
@@ -131,6 +133,7 @@ int csp_usart_open(const csp_usart_conf_t * conf, csp_usart_callback_t rx_callba
 		case 4000000:
 			brate = B4000000;
 			break;
+#endif
 		default:
 			csp_print(CSP_LL_ERROR, "%s: Unsupported baudrate: %u\n", __func__, conf->baudrate);
 			return CSP_ERR_INVAL;

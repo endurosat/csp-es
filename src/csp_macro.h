@@ -21,6 +21,12 @@
 #undef __noinit
 #define __noinit
 #define __weak
+#elif defined(__APPLE__)
+// Mach-O requires "segment,section" attribute syntax, not a bare section name. Like Windows,
+// skip the .noinit placement optimization and let these sections go to ordinary .bss storage.
+#undef __noinit
+#define __noinit
+#define __weak __attribute__((__weak__))
 #else
 #define __weak __attribute__((__weak__))
 #endif
