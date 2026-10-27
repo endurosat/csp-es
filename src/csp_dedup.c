@@ -22,7 +22,14 @@ static unsigned int csp_dedup_in = 0;
 bool csp_dedup_is_duplicate(csp_packet_t * packet) {
 	/* Calculate CRC32 for packet */
 	csp_id_prepend(packet);
-	uint32_t crc = csp_crc32_memory(packet->frame_begin, packet->frame_length);
+	/* Leave out a CRC32 trailer: from a sender whose CRC32 covers the header (CSP 2.1 style),
+	 * the trailer is the CRC32 of the hashed header and data, so hashing a packet together
+	 * with it cancels half the hash and different packets collide */
+	uint32_t length = packet->frame_length;
+	if ((packet->id.flags & CSP_FCRC32) && (packet->length >= sizeof(uint32_t))) {
+		length -= sizeof(uint32_t);
+	}
+	uint32_t crc = csp_crc32_memory(packet->frame_begin, length);
 	uint32_t time = csp_get_ms();
 
 	/* Check if we have received this packet before, start looking from newest packet */
