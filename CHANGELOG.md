@@ -40,6 +40,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Deduplication dropping valid CRC32 packets** — `csp_dedup_is_duplicate()`
+  no longer includes the CRC32 trailer of a `CSP_FCRC32` packet in its hash.
+  From a sender whose CRC32 covers the header (CSP 2.1 style, e.g. esvio), the
+  trailer is the CRC32 of the same header and data, so hashing both left only
+  16 bits of the 32-bit hash: different packets collided and the router
+  dropped the later one as a duplicate (no reply, only `iface->drop`
+  incremented). Byte-identical packets are still detected as duplicates.
 - **CAN RX buffer allocation failure** — `csp_can_pbuf_new` now uses
   `csp_buffer_get` instead of `csp_buffer_get_always` so allocation can fail
   gracefully under memory pressure. Both `csp_can1_rx` and `csp_can2_rx` guard

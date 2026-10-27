@@ -10,6 +10,7 @@ Suite * buffer_suite(void);
 Suite * hmac_suite(void);
 Suite * routing_enable_disable_suite(void);
 Suite * csp_version_suite(void);
+Suite * dedup_suite(void);
 
 static struct option long_options[] = {
     {"verbose", no_argument, 0, 'V'},
@@ -53,6 +54,7 @@ int main(int argc, char *argv[])
 	srunner_add_suite(sr, hmac_suite());
 	srunner_add_suite(sr, routing_enable_disable_suite());
 	srunner_add_suite(sr, csp_version_suite());
+	srunner_add_suite(sr, dedup_suite());
 
 	srunner_run_all(sr, print_verbosity);
 	number_failed = srunner_ntests_failed(sr);
