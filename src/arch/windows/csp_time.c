@@ -13,6 +13,7 @@
 #define CLOCK_MONOTONIC 1
 #endif
 
+#ifndef _POSIX_TIMERS
 /*
  * Emulated clock_gettime function for Windows.
  *
@@ -61,6 +62,7 @@ int clock_gettime(int clock_id, struct timespec* tp) {
 
 	return -1;
 }
+#endif
 
 uint32_t csp_get_ms(void) {
 
